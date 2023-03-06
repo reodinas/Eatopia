@@ -9,12 +9,13 @@ from utils import check_password, hash_password
 
 
 class UserRegisterResource(Resource):
+
     def post(self):
         # {
         #     "email" : "aaa@naver.com",
         #     "password" : "1234",
-        #     "name" : "홍길동",
-        #     "gender" : "Male"
+        #     "nickname" : "홍길동",
+        #     "phone" : "010-9999-9999"
         # }
 
         # 1. 클라이언트가 보낸 데이터를 받아준다.
@@ -41,11 +42,11 @@ class UserRegisterResource(Resource):
         try:
             connection = get_connection()
             query = '''insert into user
-                    (email, password, name, gender)
+                    (email, password, nickname, phone)
                     values
                     (%s, %s, %s, %s);
                     '''
-            record = (data['email'], hashed_password, data['name'], data['gender'])
+            record = (data['email'], hashed_password, data['nickname'], data['phone'])
 
             cursor = connection.cursor()
             cursor.execute(query, record)
@@ -73,4 +74,75 @@ class UserRegisterResource(Resource):
         access_token = create_access_token(user_id)
 
         return {'result' : 'success', 'access_token' : access_token}, 200
+    
+
+class UserLoginResource(Resource):
+
+    def post(self):
+        # {
+        #   "email" : "aaa@naver.com",
+        #   "password" : "1234"
+        # }
+
+        # 1. 클라이언트가 보낸 데이터를 받아온다.
+        data = request.get_json()
+
+        # 2. DB로부터 해당 유저의 데이터를 가져온다.
+        try:
+            connection = get_connection()
+            query = '''select *
+                    from user
+                    where email = %s;'''
+
+            record = (data['email'], )
+
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, record)
+
+            result_list = cursor.fetchall()
+
+            if not result_list:
+                return {'error' : '회원가입한 사람이 아닙니다.'}, 400
+
+            for row in result_list:
+                row['createdAt'] = row['createdAt'].isoformat()
+
+            cursor.close()
+            connection.close()
+        
+        except Error as e:
+            print(e)
+            cursor.close()
+            connection.close()
+            return {'error' : str(e)}, 500
+
+        # print(result_list)
+
+        # 3. 비밀번호가 맞는지 확인한다.
+        check = check_password(data['password'], result_list[0]['password'])
+
+        if check == False:
+            return {'error' : '비밀번호가 틀립니다.'}, 400
+
+        # 4. JWT 토큰을 만들어서 클라이언트에게 보낸다.
+        access_token = create_access_token( result_list[0]['id'] )
+
+        return {'result' : 'success',
+                'access_token' : access_token}, 200
+
+
+# 로그아웃된 토큰을 저장할 set을 만든다.
+jwt_blocklist = set()
+
+class UserLogoutResource(Resource):
+
+    @jwt_required()
+    def post(self):
+
+        jti = get_jwt()['jti']
+
+        jwt_blocklist.add(jti)
+
+        return {'result' : 'success'}, 200
+
 
