@@ -10,6 +10,7 @@ from utils import check_password, hash_password
 
 class UserRegisterResource(Resource):
 
+    # 회원가입
     def post(self):
         # {
         #     "email" : "aaa@naver.com",
@@ -41,7 +42,7 @@ class UserRegisterResource(Resource):
         # 5. DB에 회원정보를 저장한다.
         try:
             connection = get_connection()
-            query = '''insert into user
+            query = '''insert into users
                     (email, password, nickname, phone)
                     values
                     (%s, %s, %s, %s);
@@ -78,6 +79,7 @@ class UserRegisterResource(Resource):
 
 class UserLoginResource(Resource):
 
+    # 로그인
     def post(self):
         # {
         #   "email" : "aaa@naver.com",
@@ -91,7 +93,7 @@ class UserLoginResource(Resource):
         try:
             connection = get_connection()
             query = '''select *
-                    from user
+                    from users
                     where email = %s;'''
 
             record = (data['email'], )
@@ -136,6 +138,7 @@ jwt_blocklist = set()
 
 class UserLogoutResource(Resource):
 
+    # 로그아웃
     @jwt_required()
     def post(self):
 
