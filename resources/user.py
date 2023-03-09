@@ -10,7 +10,7 @@ from utils import check_password, hash_password
 
 class UserRegisterResource(Resource):
 
-    # 회원가입
+    # 회원가입 API
     def post(self):
         # {
         #     "email" : "aaa@naver.com",
@@ -79,7 +79,7 @@ class UserRegisterResource(Resource):
 
 class UserLoginResource(Resource):
 
-    # 로그인
+    # 로그인 API
     def post(self):
         # {
         #   "email" : "aaa@naver.com",
@@ -138,7 +138,7 @@ jwt_blocklist = set()
 
 class UserLogoutResource(Resource):
 
-    # 로그아웃
+    # 로그아웃 API
     @jwt_required()
     def post(self):
 
