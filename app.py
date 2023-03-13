@@ -3,7 +3,7 @@ from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
 from config import Config
-from resources.restaurant import RestaurantMenuResource, RestaurantResource
+from resources.restaurant import RestaurantMenuResource, RestaurantResource, RestaurantListResource
 
 from resources.user import UserLoginResource, UserLogoutResource, UserRegisterResource
 from resources.user import jwt_blocklist
@@ -30,7 +30,7 @@ api.add_resource(UserRegisterResource, '/user/register')
 api.add_resource(UserLoginResource, '/user/login')
 api.add_resource(UserLogoutResource, '/user/logout')
 
-# api.add_resource(RestaurantListResource, '/restaurant')
+api.add_resource(RestaurantListResource, '/restaurant')
 api.add_resource(RestaurantResource, '/restaurant/<int:restaurantId>')
 api.add_resource(RestaurantMenuResource, '/restaurant/<int:restaurantId>/menu')
 
