@@ -110,15 +110,15 @@ class RestaurantListResource(Resource):
             df = df.sort_values(order, ascending=False)
         else:
             return {'error' : '올바르지 않은 order 입니다.'}, 400
-
+        
         # print(df)
-        result = df.iloc[offset:limit]
-        result = result.to_dict('records')
-        print(result)
+        result_list = df.iloc[offset:limit]
+        result_list = result_list.to_dict('records')
+        # print(result_list)
 
         return {'result' : 'success',
-                'items' : result,
-                'count' : len(result)}
+                'items' : result_list,
+                'count' : len(result_list)}
     
 
 class RestaurantResource(Resource):
