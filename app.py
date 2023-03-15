@@ -3,6 +3,7 @@ from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
 from config import Config
+from resources.order import OrderResource, OrderListResource
 from resources.restaurant import RestaurantMenuResource, RestaurantResource, RestaurantListResource, RestaurantOrderResource
 
 from resources.user import UserLoginResource, UserLogoutResource, UserRegisterResource
@@ -34,6 +35,9 @@ api.add_resource(RestaurantListResource, '/restaurant')
 api.add_resource(RestaurantResource, '/restaurant/<int:restaurantId>')
 api.add_resource(RestaurantMenuResource, '/restaurant/<int:restaurantId>/menu')
 api.add_resource(RestaurantOrderResource, '/restaurant/<int:restaurantId>/order')
+
+api.add_resource(OrderListResource, '/order')
+api.add_resource(OrderResource, '/order/<int:orderId>')
 
 
 if __name__ == '__main__':

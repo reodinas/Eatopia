@@ -11,7 +11,7 @@ from mysql_connection import get_connection
 
 class RestaurantListResource(Resource):
 
-    # 식당리스트 가져오는 API
+    # 식당리스트 조회 API
     @jwt_required(optional=True)
     def get(self):
 
@@ -169,7 +169,7 @@ class RestaurantListResource(Resource):
 
 class RestaurantResource(Resource):
 
-    # 식당 상세정보 가져오는 API
+    # 식당 상세정보 조회 API
     @jwt_required(optional=True) 
     def get(self, restaurantId):
         
@@ -189,7 +189,8 @@ class RestaurantResource(Resource):
             cursor.execute(query, record)
             result = cursor.fetchone()
 
-            
+            cursor.close()
+            connection.close()
 
             # safe coding
             if result['id'] is None:
@@ -198,12 +199,8 @@ class RestaurantResource(Resource):
             result['createdAt'] = result['createdAt'].isoformat()
             result['updatedAt'] = result['updatedAt'].isoformat()
             result['avg'] = float(result['avg'])
-
             # print(result)
 
-            cursor.close()
-            connection.close()
-        
         except Error as e:
             print(e)
             cursor.close()
@@ -216,7 +213,7 @@ class RestaurantResource(Resource):
 
 class RestaurantMenuResource(Resource):
 
-    # 식당 메뉴리스트 가져오는 API
+    # 식당 메뉴리스트 조회 API
     @jwt_required(optional=True) 
     def get(self, restaurantId):
 
@@ -262,6 +259,7 @@ class RestaurantMenuResource(Resource):
 
 class RestaurantOrderResource(Resource):
     
+    # 식당 주문 API
     @jwt_required()
     def post(self, restaurantId):
 
