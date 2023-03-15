@@ -1,14 +1,12 @@
 from flask import request
 from flask_restful import Resource
 from mysql.connector import Error
-from email_validator import validate_email, EmailNotValidError
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity
 import pandas as pd
 import numpy as np
 from haversine import haversine
 
 from mysql_connection import get_connection
-from utils import check_password, hash_password
 
 
 class RestaurantListResource(Resource):
@@ -30,7 +28,8 @@ class RestaurantListResource(Resource):
         
         if not lat or not lng:
             return {'error' : 'lat와 lng는 필수 파라미터입니다.'}, 400
-   
+
+        # 기본값
         if not offset:
             offset = 0
         
@@ -53,43 +52,85 @@ class RestaurantListResource(Resource):
         
         if not (-180 <= lng <=180):
             return {'error' : 'lng값을 확인하세요.'}, 400
-
-        try:
-            connection = get_connection()
-            query = '''
-                    select r.id, r.name, r.category, r.locCity, r.locDistrict, r.locDetail,
-                        r.longitude, r.latitude, r.imgUrl,
-                        ifnull(count(rv.restaurantId), 0) as count,
-                        ifnull(avg(rv.rating), 0) as rating
-                    from restaurant r
-                    left join review rv
-                    on r.id = rv.restaurantId
-                    where name like "%'''+keyword+'''%" 
-                        or category like "%'''+keyword+'''%"
-                        or locCity like "%'''+keyword+'''%"
-                        or locDistrict like "%'''+keyword+'''%"
-                        or locDetail like "%'''+keyword+'''%"
-                    group by r.id;
-                    '''  
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute(query)
-            result_list = cursor.fetchall()
-
-            for row in result_list:
-                row['rating'] = float(row['rating'])
-
-            cursor.close()
-            connection.close()
         
-        except Error as e:
-            print(e)
-            cursor.close()
-            connection.close()
-            return {'error' : str(e)}, 500
-        
-        if not result_list:
-            return {'msg' : '검색결과가 없습니다.'}, 205 
-        
+        # 여백 처리
+        keyword = keyword.strip()
+
+        # 검색어가 없는 경우: 전체 검색
+        if not keyword:
+            try:
+                connection = get_connection()
+                query = '''
+                        select r.id, r.name, r.category, r.locCity, r.locDistrict, r.locDetail,
+                            r.longitude, r.latitude, r.imgUrl,
+                            ifnull(count(rv.restaurantId), 0) as count,
+                            ifnull(avg(rv.rating), 0) as rating
+                        from restaurant r
+                        left join review rv
+                        on r.id = rv.restaurantId
+                        group by r.id;
+                        '''  
+                cursor = connection.cursor(dictionary=True)
+                cursor.execute(query)
+                result_list = cursor.fetchall()
+
+                for row in result_list:
+                    row['rating'] = float(row['rating'])
+
+                cursor.close()
+                connection.close()
+            
+            except Error as e:
+                print(e)
+                cursor.close()
+                connection.close()
+                return {'error' : str(e)}, 500
+            
+        # 검색어가 있는 경우
+        else:
+            # 띄어쓰기로 분리
+            # ex) '인천 서구 한식' -> '+인천*+서구*+한식*'
+            keywordList = keyword.split(' ')
+            search = ''
+            for word in keywordList:
+                search = search + f'+{word}*'
+
+            try:
+                connection = get_connection()
+                query = '''
+                        select r.id, r.name, r.category, r.locCity, r.locDistrict, r.locDetail,
+                            r.longitude, r.latitude, r.imgUrl,
+                            ifnull(count(rv.restaurantId), 0) as count,
+                            ifnull(avg(rv.rating), 0) as rating
+                        from restaurant r
+                        left join review rv
+                        on r.id = rv.restaurantId
+                        where match(locCity, locDistrict, locDetail, name, category)
+                        against("%s" in boolean mode)
+                        group by r.id;
+                        '''  
+                cursor = connection.cursor(dictionary=True)
+                record = (search,)
+                cursor.execute(query, record)
+                result_list = cursor.fetchall()
+
+                for row in result_list:
+                    row['rating'] = float(row['rating'])
+
+                cursor.close()
+                connection.close()
+            
+            except Error as e:
+                print(e)
+                cursor.close()
+                connection.close()
+                return {'error' : str(e)}, 500
+            
+            if not result_list:
+                return {'msg' : '검색결과가 없습니다.'}, 205 
+
+
+        # 가게와의 거리를 계산하기 위해 데이터프레임으로
         df = pd.DataFrame(data=result_list)
 
         # print(df)
@@ -98,14 +139,19 @@ class RestaurantListResource(Resource):
 
         LocationList = np.array(df[['latitude','longitude']])
 
+        # 하버사인 거리 계산
         distanceList = []
         for row in LocationList:
-            distanceList.append(haversine(myLocation, row, unit='m'))
-            
+            distance = round(haversine(myLocation, row, unit='m'))
+            distanceList.append(distance)
+        
+        # 거리 컬럼 추가
         df['distance'] = distanceList
         
+        # 가까운 순 정렬
         if order == 'distance':
             df = df.sort_values(order, ascending=True)
+        # 리뷰갯수 or 평점 순 정렬
         elif order == 'count' or order == 'rating':
             df = df.sort_values(order, ascending=False)
         else:
@@ -124,7 +170,7 @@ class RestaurantListResource(Resource):
 class RestaurantResource(Resource):
 
     # 식당 상세정보 가져오는 API
-    @jwt_required(optional=True) # 회원도 똑같이 동작하기 때문에 안써도 됨
+    @jwt_required(optional=True) 
     def get(self, restaurantId):
         
         try:
@@ -153,7 +199,7 @@ class RestaurantResource(Resource):
             result['updatedAt'] = result['updatedAt'].isoformat()
             result['avg'] = float(result['avg'])
 
-            print(result)
+            # print(result)
 
             cursor.close()
             connection.close()
@@ -174,12 +220,22 @@ class RestaurantMenuResource(Resource):
     @jwt_required(optional=True) 
     def get(self, restaurantId):
 
+        offset = request.args.get('offset')
+        limit = request.args.get('limit')
+
+        # 기본값
+        if not offset:
+            offset = 0
+        if not limit:
+            limit = 20
+
         try:
             connection = get_connection()
             query = '''
                     select * 
                     from menu
-                    where restaurantId = %s;
+                    where restaurantId = %s
+                    limit '''+offset+''', '''+limit+''';
                     '''  
             record = (restaurantId, )
             cursor = connection.cursor(dictionary=True)
