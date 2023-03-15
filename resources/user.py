@@ -55,7 +55,7 @@ class UserRegisterResource(Resource):
 
             ### DB에 회원가입하여, insert 된 후에
             ### user 테이블의 id값을 가져오는 코드!
-            user_id = cursor.lastrowid
+            userId = cursor.lastrowid
 
             cursor.close()
             connection.close()
@@ -67,12 +67,12 @@ class UserRegisterResource(Resource):
             return {'error' : str(e)}, 500
 
 
-        ### user_id를 바로 클라이언트에게 보내면 안되고,
+        ### userId를 바로 클라이언트에게 보내면 안되고,
         ### JWT로 암호화해서, 인증토큰을 보낸다.
 
-        # create_access_token(user_id,
+        # create_access_token(userId,
         #                     expires_delta=datetime.timedelta(days=10))
-        access_token = create_access_token(user_id)
+        access_token = create_access_token(userId)
 
         return {'result' : 'success', 'access_token' : access_token}, 200
     

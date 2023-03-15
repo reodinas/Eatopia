@@ -15,7 +15,7 @@ class RestaurantListResource(Resource):
     @jwt_required(optional=True)
     def get(self):
 
-        user_id = get_jwt_identity()
+        userId = get_jwt_identity()
 
         # 클라이언트에서 쿼리스트링으로 보내는 데이터는
         # request.args에 들어있다.
@@ -259,4 +259,51 @@ class RestaurantMenuResource(Resource):
                 'items' : result_list,
                 'count' : len(result_list)}, 200
 
-        
+
+class RestaurantOrderResource(Resource):
+    
+    @jwt_required()
+    def post(self, restaurantId):
+
+        userId = get_jwt_identity()
+        data = request.get_json()
+        menuInfo = data['menuInfo']
+
+        try:
+            connection = get_connection()
+            # 1. order 테이블에 저장
+            query = '''
+                    insert into orders
+                    (userId, restaurantId, people, reservTime)
+                    values (%s, %s, %s, %s);
+                    '''
+            record = [userId, restaurantId, data['people'], data['reservTime']]
+
+            cursor = connection.cursor()
+            cursor.execute(query, record)
+
+            orderId = cursor.lastrowid
+
+            # 2. orderDetail 테이블에 메뉴 저장
+            for row in menuInfo:
+                query = '''
+                        insert into orderDetail
+                        (orderId, menuId, count)
+                        values (%s, %s, %s);
+                        '''
+                record = [orderId, row['menuId'], row['count']]
+                cursor.execute(query, record)
+            
+            connection.commit()
+            
+            cursor.close()
+            connection.close()
+
+        except Error as e:
+            print(e)
+            cursor.close()
+            connection.close()
+            return {'error' : str(e)}, 500
+
+        return {'result' : 'success',
+                'orderId' : orderId}, 200
